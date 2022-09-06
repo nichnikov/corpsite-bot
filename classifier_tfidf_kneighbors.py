@@ -9,7 +9,7 @@ from texts_processing import TextsTokenizer, TokensVectorsTfIdf
 
 df = pd.read_csv(os.path.join("data", "support_calls.csv"), sep="\t")
 
-feature = "TypeName"
+feature = "ReasonName"
 train_df, test_df = train_test_datasets_prepare(df, "Description", feature)
 
 print(train_df.shape, test_df.shape)
@@ -50,16 +50,18 @@ test_texts = list(test_df["text"])
 uniq_y = sorted(list(set(y)))
 
 results = []
-for num, t_texts in enumerate(test_texts):
-    test_tokens = tokenizer(t_texts)
-    test_vectors = vectorizer(test_tokens)
+test_tokens = tokenizer(test_texts)
+num = 1
+for t_text, t_tokens in zip(test_texts, test_tokens):
+    test_vectors = vectorizer([t_tokens])
     test_matrix = hstack(test_vectors).T
     test_results = neigh.predict_proba(test_matrix.toarray())
     test_results_y_sort = sorted(zip(uniq_y, test_results[0]), key=lambda x: x[1], reverse=True)
-    results.append((num, t_texts, test_results_y_sort[0][0], test_results_y_sort[0][1]))
+    results.append((t_text, t_tokens, test_results_y_sort[0][0], test_results_y_sort[0][1]))
     print(num, "/", len(test_texts))
+    num += 1
 
-results_df = pd.DataFrame(results, columns=["text_number", "text", "predict_id", "score"])
+results_df = pd.DataFrame(results, columns=["text", "tokens", "predict_id", "score"])
 print(results_df)
 results_with_true_df = pd.merge(results_df, test_df, on="text")
 
