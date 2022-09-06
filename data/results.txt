@@ -1,0 +1,20 @@
+SentenceTransformer('distiluse-base-multilingual-cased-v1')
+KNeighborsClassifier(n_neighbors=10)
+score >= 0.6
+
+ReasonName
+[2430 rows x 4 columns]
+788 recall: 0.3203252032520325
+accuracy: 0.6230964467005076
+
+ProductName
+[2443 rows x 4 columns]
+916 recall: 0.36537694455524533
+accuracy: 0.7314410480349345
+
+TypeName
+[2519 rows x 4 columns]
+604 recall: 0.23566133437378073
+accuracy: 0.7102649006622517
+
+
