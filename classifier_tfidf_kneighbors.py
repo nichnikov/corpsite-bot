@@ -1,16 +1,33 @@
 import os
+import json
+from datetime import datetime
 import pandas as pd
-import numpy as np
 from scipy.sparse import hstack
 from data_prepare import train_test_datasets_prepare
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import accuracy_score
 from texts_processing import TextsTokenizer, TokensVectorsTfIdf
 
-df = pd.read_csv(os.path.join("data", "support_calls.csv"), sep="\t")
+now = datetime.now()
+date_time = now.strftime("%Y%m%d_%H%M")
 
-feature = "ReasonName"
+dir_name = "".join([date_time, "_tfidf_knn"])
+if not os.path.exists(os.path.join("results", dir_name)):
+    os.mkdir(os.path.join("results", dir_name))
+
+
+# df = pd.read_csv(os.path.join("data", "support_calls.csv"), sep="\t")
+df = pd.read_excel(os.path.join("data", "support_calls.xlsx"))
+test_parameters = {}
+
+n_nbrs = 5
+vcabulary_size = 15000
+test_parameters["n_neighbors"] = n_nbrs
+
+feature = "tag"
 train_df, test_df = train_test_datasets_prepare(df, "Description", feature)
+test_parameters["train_shape"] = str(train_df.shape)
+test_parameters["test_shape"] = str(test_df.shape)
 
 print(train_df.shape, test_df.shape)
 
@@ -26,12 +43,14 @@ for y in set(train_df["y"]):
     train_y_df = train_y_df.sample(frac=1)
     train_balanced_df = pd.concat((train_balanced_df, train_y_df))
 
+test_parameters["train_balanced_shape"] = str(train_balanced_df.shape)
 # train_balanced_df.to_csv("train_balanced_df_ + str(feature) +  .csv", sep='\t')
 print("df_train_balanced:\n", train_balanced_df)
 
 # vectorizer = SentenceTransformer('distiluse-base-multilingual-cased-v1')
+test_parameters["tfidf_vocabulary_size"] = vcabulary_size
 tokenizer = TextsTokenizer()
-vectorizer = TokensVectorsTfIdf(15000)
+vectorizer = TokensVectorsTfIdf(vcabulary_size)
 
 train_queries = list(train_balanced_df["etalon"])
 y = list(train_balanced_df["y"])
@@ -42,7 +61,7 @@ train_matrix = hstack(train_vectors).T
 # X = np.concatenate([v.toarray() for v in train_vectors])
 X = train_matrix.toarray()
 print(X.shape)
-neigh = KNeighborsClassifier(n_neighbors=10)
+neigh = KNeighborsClassifier(n_neighbors=n_nbrs)
 neigh.fit(X, y)
 
 
@@ -66,12 +85,21 @@ print(results_df)
 results_with_true_df = pd.merge(results_df, test_df, on="text")
 
 # results_df.to_csv(os.path.join("data", "test_results_transformer.csv"), sep="\t", index=False)
-results_with_true_df.to_csv(os.path.join("data", "test_results_with_true_tfidf_" +
+results_with_true_df.to_csv(os.path.join("results", dir_name, "test_results_with_true_tfidf_" +
                                          str(feature) + ".csv"), sep="\t", index=False)
 results_with_true_df_ = results_with_true_df[results_with_true_df["score"] >= 0.6]
 
 y_pred = results_with_true_df_["predict_id"]
 y_true = results_with_true_df_["label"]
 accuracy = accuracy_score(y_true, y_pred)
+
+test_parameters["recall"] = len(y_true) / len(results_with_true_df)
+test_parameters["accuracy"] = accuracy
+
+print(test_parameters)
+
+with open(os.path.join("results", dir_name, "parameters.json"), "w") as j_f:
+    json.dump(test_parameters, j_f)
+
 print(len(y_true), "recall:", len(y_true) / len(results_with_true_df))
 print("accuracy:", accuracy)

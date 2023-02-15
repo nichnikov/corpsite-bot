@@ -1,7 +1,7 @@
 import re
 import copy
 from pymystem3 import Mystem
-from itertools import chain, filterfalse
+from itertools import chain
 from gensim.models import TfidfModel
 from gensim.corpora import Dictionary
 from gensim.matutils import corpus2csc
@@ -12,23 +12,37 @@ class TextsTokenizer:
 
     def __init__(self):
         self.stopwords = []
+        self.patterns = re.compile("")
         self.m = Mystem()
 
     def texts2tokens(self, texts: [str]) -> [str]:
         """Lemmatization for texts in list. It returns list with lemmatized texts"""
-        text_ = "\n".join(texts)
-        text_ = re.sub(r"[^\w\n\s]", " ", text_)
-        lm_texts = "".join(self.m.lemmatize(text_))
-        return [lm_tx.split() for lm_tx in lm_texts.split("\n")][:-1]
+        try:
+            text_ = "\n".join(texts)
+            text_ = re.sub(r"[^\w\n\s]", " ", text_)
+            lm_texts = "".join(self.m.lemmatize(text_.lower()))
+            return [lm_tx.split() for lm_tx in lm_texts.split("\n")][:-1]
+        except TypeError as e:
+            return []
 
     def add_stopwords(self, stopwords: [str]):
         """adding stop words into class"""
-        self.stopwords = [x for x in chain(*self.texts2tokens(stopwords))]
+        self.stopwords = [" ".join(x) for x in self.texts2tokens(stopwords)]
+        self.patterns = re.compile("|".join([r"\b" + tx + r"\b" for tx in self.stopwords]))
+
+    def del_stopwords(self, stopwords: [str]):
+        """adding stop words into class"""
+        stopwords_del = [x for x in chain(*self.texts2tokens(stopwords))]
+        self.stopwords = [w for w in self.stopwords if w not in stopwords_del]
+        self.patterns = re.compile("|".join([r"\b" + tx + r"\b" for tx in self.stopwords]))
 
     def tokenization(self, texts: [str]) -> [[]]:
         """list of texts lemmatization with stop words deleting"""
         lemm_texts = self.texts2tokens(texts)
-        return [list(filterfalse(lambda x: x in self.stopwords, tx)) for tx in lemm_texts]
+        if self.stopwords:
+            return [self.patterns.sub(" ", " ".join(l_tx)).split() for l_tx in lemm_texts]
+        else:
+            return lemm_texts
 
     def __call__(self, texts: [str]):
         return self.tokenization(texts)

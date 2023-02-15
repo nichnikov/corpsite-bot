@@ -36,10 +36,11 @@ def column_text_changed(df: pd.DataFrame, column: str, patterns: []):
     df[column] = df[column].apply(lambda x: pattern_changed(x, patterns))
     return df
 
+
 def train_test_datasets_prepare(df: pd.DataFrame, data_column: str, label_column: str):
     """"""
     patterns = [("(?P<url>https?://[^\s]+)", " http_url "), (r"\d+", " number_mask "),
-                (r"[\w.+-]+@[\w-]+\.[\w.-]+", " email "), (r"(?P<url>\\[^\s]+)", " url_internal ")]
+                (r"[\w.+-]+@[\w-]+\.[\w.-]+", " email "), (r"(?P<url>\\[^\s]+)", " url_internal "), (r"\t", " ")]
 
     data_lb_df = data_labled(df, data_column, label_column)
     data_lb_df = column_text_changed(data_lb_df, data_column, patterns)
@@ -55,7 +56,9 @@ def train_test_datasets_prepare(df: pd.DataFrame, data_column: str, label_column
     return train_df_all, test_df_all
 
 
-df = pd.read_csv(os.path.join("data", "support_calls.csv"), sep="\t")
-train_df, test_df = train_test_datasets_prepare(df, "Description", "ProductName")
-train_df.to_csv(os.path.join("data", "train_df.csv"), sep="\t", index=False)
-test_df.to_csv(os.path.join("data", "test_df.csv"), sep="\t", index=False)
+if __name__ == "__main__":
+    # df = pd.read_csv(os.path.join("data", "support_calls.csv"), sep="")
+    df = pd.read_excel(os.path.join("data", "support_calls.xlsx"))
+    train_df, test_df = train_test_datasets_prepare(df, "Description", "tag")
+    train_df.to_csv(os.path.join("data", "train_df.csv"), sep="\t", index=False)
+    test_df.to_csv(os.path.join("data", "test_df.csv"), sep="\t", index=False)

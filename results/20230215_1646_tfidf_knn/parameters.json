@@ -1,0 +1,1 @@
+{"n_neighbors": 5, "train_shape": "(10898, 3)", "test_shape": "(2835, 3)", "train_balanced_shape": "(10898, 3)", "tfidf_vocabulary_size": 15000, "recall": 0.39509160041479435, "accuracy": 0.5896762904636921}
