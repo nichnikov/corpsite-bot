@@ -6,17 +6,28 @@ from sentence_transformers import SentenceTransformer
 from data_prepare import train_test_datasets_prepare
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import accuracy_score
+from texts_processing import TextsTokenizer
 
 
 now = datetime.now()
 date_time = now.strftime("%Y%m%d_%H%M")
 
+tokenizer = TextsTokenizer()
+
+grts_df = pd.read_csv(os.path.join("data", "greetings.csv"))
+stwrds_df = pd.read_csv(os.path.join("data", "stopwords.csv"))
+stopwords = list(grts_df["stopwords"]) + list(stwrds_df["stopwords"])
+print("stopwords:", stopwords[:10])
+tokenizer.add_stopwords(stopwords)
+
 dir_name = "".join([date_time, "_transformer_knn"])
 if not os.path.exists(os.path.join("results", dir_name)):
     os.mkdir(os.path.join("results", dir_name))
 
-n_nbrs = 5
+tokenize_texts = True
+n_nbrs = 10
 test_parameters = {}
+test_parameters["with_tokenizer"] = tokenize_texts
 
 # df = pd.read_csv(os.path.join("data", "support_calls.csv"), sep="\t")
 df = pd.read_excel(os.path.join("data", "support_calls.xlsx"))
@@ -49,7 +60,19 @@ vectorizer = SentenceTransformer('distiluse-base-multilingual-cased-v1')
 
 train_queries = list(train_balanced_df["etalon"])
 y = list(train_balanced_df["y"])
-train_vectors = vectorizer.encode([x.lower() for x in train_queries])
+
+test_texts = list(test_df["text"])
+
+if tokenize_texts:
+    lem_train_queries = [" ".join(tx_l) for tx_l in tokenizer(train_queries)]
+    print("lem_train_queries:", lem_train_queries[:10])
+
+    lem_test_texts = [" ".join(tx_l) for tx_l in tokenizer(list(test_df["text"]))]
+    print("lem_test_texts:", lem_test_texts[:10])
+    train_vectors = vectorizer.encode([x.lower() for x in lem_train_queries])
+else:
+    train_vectors = vectorizer.encode([x.lower() for x in train_queries])
+    lem_test_texts = test_texts
 
 
 test_parameters["n_neighbors"] = n_nbrs
@@ -59,18 +82,17 @@ neigh = KNeighborsClassifier(n_neighbors=n_nbrs)
 neigh.fit(X, y)
 
 
-test_texts = list(test_df["text"])
 uniq_y = sorted(list(set(y)))
 
 results = []
-for num, t_texts in enumerate(test_texts):
-    test_vector = vectorizer.encode([t_texts.lower()])
+for num, lem_t_texts in enumerate(zip(lem_test_texts, test_texts)):
+    test_vector = vectorizer.encode([lem_t_texts[0].lower()])
     test_results = neigh.predict_proba(test_vector)
     test_results_y_sort = sorted(zip(uniq_y, test_results[0]), key=lambda x: x[1], reverse=True)
-    results.append((num, t_texts, test_results_y_sort[0][0], test_results_y_sort[0][1]))
-    print(num, "/", len(test_texts))
+    results.append((num, lem_t_texts[0], lem_t_texts[1], test_results_y_sort[0][0], test_results_y_sort[0][1]))
+    print(num, "/", len(lem_test_texts))
 
-results_df = pd.DataFrame(results, columns=["text_number", "text", "predict_id", "score"])
+results_df = pd.DataFrame(results, columns=["text_number", "lem_text", "text", "predict_id", "score"])
 print(results_df)
 results_with_true_df = pd.merge(results_df, test_df, on="text")
 
